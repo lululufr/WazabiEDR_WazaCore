@@ -240,7 +240,11 @@ mod tests {
     fn builtin_includes_process_create_pid() {
         let s = builtin_kernel_schema();
         assert_eq!(s.module, "kernel_callback");
-        let pc = s.events.iter().find(|e| e.name == "process_create").unwrap();
+        let pc = s
+            .events
+            .iter()
+            .find(|e| e.name == "process_create")
+            .unwrap();
         assert!(pc.fields.iter().any(|f| f.name == "pid"));
     }
 }

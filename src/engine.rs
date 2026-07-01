@@ -125,7 +125,11 @@ impl RuleEngine {
             .collect();
         let throttles = rules
             .iter()
-            .map(|r| r.throttle.as_ref().map(|t| Mutex::new(ThrottleState::from(t))))
+            .map(|r| {
+                r.throttle
+                    .as_ref()
+                    .map(|t| Mutex::new(ThrottleState::from(t)))
+            })
             .collect();
         Self {
             rules,

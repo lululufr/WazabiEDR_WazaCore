@@ -1,0 +1,49 @@
+# CI du crate wedr-waza-core.
+#
+# Consommé par WazabiEDR_Agent et WazabiEDR_Utils via `git = "..."`
+# tag = "vX.Y.Z" — donc un test cassé ici doit être attrapé AVANT
+# qu'on ne tag une release, sinon les deux crates consommateurs
+# entrent dans un état incohérent.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: cargo test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Le crate est pur logique — aucun binding OS. Un test sur Linux
+        # suffit fonctionnellement ; on rajoute Windows pour couvrir la
+        # cible réelle des consommateurs (agent Windows kernel).
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      # Pas de --locked : le crate est une lib (Cargo.lock gitignoré,
+      # cf. convention libs). Le lockfile régénéré au CI n'est pas
+      # un problème — les consommateurs (Agent, Utils) ont le leur.
+      - name: cargo build
+        run: cargo build --all-targets
+
+      - name: cargo test
+        run: cargo test --all-targets

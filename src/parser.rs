@@ -100,8 +100,8 @@ fn parse_file_inner(
     if done.contains(&canon) {
         return Ok(Vec::new());
     }
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {}", path.display(), e))?;
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("read {}: {}", path.display(), e))?;
     let base_dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
 
     stack.insert(canon.clone());
@@ -268,8 +268,8 @@ fn parse_str(
                         lineno + 1
                     ));
                 };
-                let cond = parse_expression(core)
-                    .map_err(|e| format!("line {}: {}", lineno + 1, e))?;
+                let cond =
+                    parse_expression(core).map_err(|e| format!("line {}: {}", lineno + 1, e))?;
                 det_groups[i].conditions.push(cond);
             }
             Section::Action => {
@@ -279,8 +279,7 @@ fn parse_str(
                         lineno + 1
                     ));
                 };
-                let act = parse_action(core)
-                    .map_err(|e| format!("line {}: {}", lineno + 1, e))?;
+                let act = parse_action(core).map_err(|e| format!("line {}: {}", lineno + 1, e))?;
                 act_lists[i].push(act);
             }
             Section::None => {
@@ -437,8 +436,8 @@ fn parse_action(s: &str) -> Result<Action, String> {
     match kw {
         "log" => Ok(Action::Log),
         "alert" => {
-            let msg = parse_string_literal(rest)
-                .unwrap_or_else(|| rest.trim_matches('"').to_string());
+            let msg =
+                parse_string_literal(rest).unwrap_or_else(|| rest.trim_matches('"').to_string());
             Ok(Action::Alert(msg))
         }
         "kill" | "killProcess" | "kill_process" => Ok(Action::KillProcess),
@@ -564,11 +563,13 @@ fn tokenize(s: &str) -> Result<Vec<Token>, String> {
                 let num = &s[start..i];
                 if is_float {
                     out.push(Token::Float(
-                        num.parse::<f64>().map_err(|_| format!("bad float '{}'", num))?,
+                        num.parse::<f64>()
+                            .map_err(|_| format!("bad float '{}'", num))?,
                     ));
                 } else {
                     out.push(Token::Int(
-                        num.parse::<i64>().map_err(|_| format!("bad int '{}'", num))?,
+                        num.parse::<i64>()
+                            .map_err(|_| format!("bad int '{}'", num))?,
                     ));
                 }
             }
@@ -754,7 +755,13 @@ mod tests {
         let c = parse_expression(r#"!m.e.path startsWith "C:\\Windows""#);
         assert!(c.is_ok(), "got {:?}", c);
         let c = parse_expression(r#"m.e.path contains "evil""#).unwrap();
-        assert!(matches!(c, Condition::Compare { op: CmpOp::Contains, .. }));
+        assert!(matches!(
+            c,
+            Condition::Compare {
+                op: CmpOp::Contains,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -795,7 +802,10 @@ mod tests {
         let rules = parse_source(doc, DEFAULT_WINDOW).unwrap();
         assert_eq!(rules.len(), 1);
         match &rules[0].conditions[0] {
-            Condition::Compare { value: RuleValue::Str(s), .. } => {
+            Condition::Compare {
+                value: RuleValue::Str(s),
+                ..
+            } => {
                 assert_eq!(s, "C:\\foo#bar.exe");
             }
             other => panic!("expected Str literal preserving '#', got {:?}", other),
@@ -816,7 +826,10 @@ mod tests {
     - log
 "#;
         let err = parse_source(doc, DEFAULT_WINDOW).unwrap_err();
-        assert!(err.contains("duplicate Detection group 'Same'"), "got: {err}");
+        assert!(
+            err.contains("duplicate Detection group 'Same'"),
+            "got: {err}"
+        );
     }
 
     #[test]
@@ -847,7 +860,10 @@ mod tests {
     - log
 "#;
         let err = parse_source(doc, DEFAULT_WINDOW).unwrap_err();
-        assert!(err.contains("Detection group but no matching Action group"), "got: {err}");
+        assert!(
+            err.contains("Detection group but no matching Action group"),
+            "got: {err}"
+        );
     }
 
     #[test]
@@ -872,17 +888,26 @@ mod tests {
     fn throttle_parsing() {
         assert_eq!(
             parse_throttle("1/min"),
-            Some(Throttle { max: 1, per: Duration::from_secs(60) })
+            Some(Throttle {
+                max: 1,
+                per: Duration::from_secs(60)
+            })
         );
         assert_eq!(
             parse_throttle("5/30s"),
-            Some(Throttle { max: 5, per: Duration::from_secs(30) })
+            Some(Throttle {
+                max: 5,
+                per: Duration::from_secs(30)
+            })
         );
         assert_eq!(
             parse_throttle("10/hour"),
-            Some(Throttle { max: 10, per: Duration::from_secs(3600) })
+            Some(Throttle {
+                max: 10,
+                per: Duration::from_secs(3600)
+            })
         );
-        assert_eq!(parse_throttle("0/min"), None);  // zero max -> reject
+        assert_eq!(parse_throttle("0/min"), None); // zero max -> reject
         assert_eq!(parse_throttle("foo"), None);
     }
 
@@ -908,7 +933,10 @@ mod tests {
         assert_eq!(r.window, Duration::from_secs(10));
         assert_eq!(
             r.throttle,
-            Some(Throttle { max: 1, per: Duration::from_secs(60) })
+            Some(Throttle {
+                max: 1,
+                per: Duration::from_secs(60)
+            })
         );
         assert_eq!(r.actions, vec![Action::Log, Action::Alert("boom".into())]);
     }
@@ -947,7 +975,11 @@ mod tests {
         )
         .unwrap();
         let err = parse_file(&main);
-        assert!(err.is_err(), "expected circular include error, got {:?}", err);
+        assert!(
+            err.is_err(),
+            "expected circular include error, got {:?}",
+            err
+        );
         assert!(err.unwrap_err().contains("circular"));
 
         let _ = std::fs::remove_dir_all(&dir);
