@@ -1,0 +1,21 @@
+[package]
+name = "wedr-waza-core"
+version = "0.1.0"
+edition = "2024"
+description = "Pure rule engine for WazabiEDR (.waza DSL parser, AST, evaluator)."
+license = "MIT"
+
+[lib]
+name = "wedr_waza_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Schema declarations are serialised on disk (optional schema.json) and
+# the CLI emits validation/simulation results as JSON.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
