@@ -17,18 +17,32 @@ pub struct FieldPath {
 }
 
 impl FieldPath {
-    /// Parse a dotted path. Exactly three segments are required; the
-    /// `field` segment may itself contain dots (unlikely, but `splitn`
-    /// keeps it lossless).
+    /// Parse a dotted path.
+    ///
+    /// Sémantique : le `field` est le **dernier segment** (après le
+    /// dernier `.`), le `module` est le **premier segment** (avant le
+    /// premier `.`), et le `event_type` est tout ce qui vit entre les
+    /// deux — **il peut donc contenir des points**.
+    ///
+    /// Ce comportement autorise les events de plugins dont le `kind`
+    /// est hiérarchique (ex: `plugin.hook.api_call.api` →
+    /// module=`plugin`, event_type=`hook.api_call`, field=`api`).
+    /// Pour les paths kernel classiques il reste équivalent au split
+    /// naïf (`kernel_callback.process_create.pid` inchangé).
     pub fn parse(s: &str) -> Option<Self> {
-        let p: Vec<&str> = s.splitn(3, '.').collect();
-        if p.len() != 3 || p.iter().any(|seg| seg.is_empty()) {
+        let last_dot = s.rfind('.')?;
+        let (left, field_with_dot) = s.split_at(last_dot);
+        let field = &field_with_dot[1..]; // strip le '.'
+        let first_dot = left.find('.')?;
+        let (module, event_with_dot) = left.split_at(first_dot);
+        let event_type = &event_with_dot[1..]; // strip le '.'
+        if module.is_empty() || event_type.is_empty() || field.is_empty() {
             return None;
         }
         Some(FieldPath {
-            module: p[0].into(),
-            event_type: p[1].into(),
-            field: p[2].into(),
+            module: module.into(),
+            event_type: event_type.into(),
+            field: field.into(),
         })
     }
 }
@@ -134,6 +148,24 @@ mod tests {
         assert!(FieldPath::parse("a.b").is_none());
         assert!(FieldPath::parse("a..c").is_none());
         assert!(FieldPath::parse("").is_none());
+    }
+
+    #[test]
+    fn field_path_supports_dotted_event_type() {
+        // Un event_type hiérarchique (kind d'un plugin) est préservé.
+        let fp = FieldPath::parse("plugin.hook.api_call.api").unwrap();
+        assert_eq!(fp.module, "plugin");
+        assert_eq!(fp.event_type, "hook.api_call");
+        assert_eq!(fp.field, "api");
+    }
+
+    #[test]
+    fn field_path_field_is_always_last_segment() {
+        // Cas dégénéré : plusieurs points dans event_type.
+        let fp = FieldPath::parse("plugin.a.b.c.d.field").unwrap();
+        assert_eq!(fp.module, "plugin");
+        assert_eq!(fp.event_type, "a.b.c.d");
+        assert_eq!(fp.field, "field");
     }
 
     #[test]
