@@ -23,6 +23,19 @@ use crate::event::LogEvent;
 type EventKey = (String, String);
 type RuleIndex = HashMap<EventKey, Vec<usize>>;
 
+/// One rule firing returned by [`RuleEngine::process_event`].
+///
+/// Carries the matched rule's name + actions **and** a snapshot of its
+/// correlation window at match time. The window lets the caller build
+/// richer alert evidence — e.g. surface the *other* events a correlation
+/// rule matched on, not only the triggering one. The triggering event is
+/// the last element of `window`.
+pub struct Firing {
+    pub rule_name: String,
+    pub actions: Vec<Action>,
+    pub window: Vec<LogEvent>,
+}
+
 /// FIFO sliding window of recent events for one rule.
 struct CorrelationWindow {
     events: VecDeque<LogEvent>,
@@ -147,7 +160,7 @@ impl RuleEngine {
     /// HOT PATH: called for every received event. Returns the
     /// `(rule_name, actions)` of every rule that fired and passed
     /// throttle gating.
-    pub fn process_event(&self, event: &LogEvent) -> Vec<(String, Vec<Action>)> {
+    pub fn process_event(&self, event: &LogEvent) -> Vec<Firing> {
         let key = (event.module.clone(), event.event_type.clone());
         let mut triggered = Vec::new();
 
@@ -178,7 +191,13 @@ impl RuleEngine {
                         continue;
                     }
                 }
-                triggered.push((rule.name.clone(), rule.actions.clone()));
+                triggered.push(Firing {
+                    rule_name: rule.name.clone(),
+                    actions: rule.actions.clone(),
+                    // Snapshot of the correlation window — the caller uses
+                    // it to attach the correlated events to the alert.
+                    window: snapshot.into_iter().collect(),
+                });
             }
         }
         triggered
@@ -250,7 +269,7 @@ mod tests {
             &[("pid", FieldValue::Int(4688))],
         ));
         assert_eq!(fired.len(), 1);
-        assert_eq!(fired[0].0, "r1");
+        assert_eq!(fired[0].rule_name, "r1");
     }
 
     #[test]
@@ -311,7 +330,17 @@ mod tests {
             &[("name", FieldValue::Str("malware.exe".into()))],
         ));
         assert_eq!(fired.len(), 1);
-        assert_eq!(fired[0].0, "corr");
+        assert_eq!(fired[0].rule_name, "corr");
+        // La fenêtre porte les DEUX events corrélés (process_create +
+        // file_create), le déclencheur étant le dernier — c'est ce qui
+        // permet à l'agent d'enrichir l'alerte avec l'autre côté du motif.
+        assert_eq!(fired[0].window.len(), 2);
+        assert!(
+            fired[0]
+                .window
+                .iter()
+                .any(|e| e.module == "kernel_callback" && e.event_type == "process_create")
+        );
     }
 
     #[test]

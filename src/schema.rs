@@ -122,9 +122,29 @@ pub fn builtin_kernel_schema() -> SchemaDeclaration {
                     f("parent_pid", Int),
                     f("creating_pid", Int),
                     f("image_path", String),
+                    // Enrichissements agent (best-effort : émis seulement
+                    // quand résolus — SID, session, token…).
+                    f("command_line", String),
+                    f("parent_image_path", String),
+                    f("parent_image_name", String),
+                    f("user_sid", String),
+                    f("user", String),
+                    f("user_domain", String),
+                    f("user_full", String),
+                    f("integrity_level", Int),
+                    f("integrity_label", String),
+                    f("session_id", Int),
+                    f("elevated", Bool),
                 ],
             ),
-            e("process_terminate", vec![f("pid", Int)]),
+            e(
+                "process_terminate",
+                vec![
+                    f("pid", Int),
+                    f("exit_code", Int),
+                    f("clean_exit", Bool),
+                ],
+            ),
             e(
                 "module_load",
                 vec![
@@ -143,7 +163,8 @@ pub fn builtin_kernel_schema() -> SchemaDeclaration {
                     f("op_code", Int),
                     f("key_path", String),
                     f("value_name", String),
-                    f("value_type", String),
+                    // Code numérique (REG_SZ=1, REG_DWORD=4…), pas une string.
+                    f("value_type", Int),
                     f("data_size", Int),
                     f("data_preview_hex", String),
                     f("data_truncated", Bool),
@@ -162,11 +183,15 @@ pub fn builtin_kernel_schema() -> SchemaDeclaration {
             e(
                 "process_handle_access",
                 vec![
+                    // `pid` = acteur (= source_pid), dupliqué pour matcher
+                    // l'acteur uniformément entre types d'events.
+                    f("pid", Int),
                     f("source_pid", Int),
                     f("target_pid", Int),
                     f("desired_access", Int),
                     f("original_desired_access", Int),
                     f("op", String),
+                    f("op_code", Int),
                 ],
             ),
         ],
