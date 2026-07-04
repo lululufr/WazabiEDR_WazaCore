@@ -139,11 +139,7 @@ pub fn builtin_kernel_schema() -> SchemaDeclaration {
             ),
             e(
                 "process_terminate",
-                vec![
-                    f("pid", Int),
-                    f("exit_code", Int),
-                    f("clean_exit", Bool),
-                ],
+                vec![f("pid", Int), f("exit_code", Int), f("clean_exit", Bool)],
             ),
             e(
                 "module_load",
